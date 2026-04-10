@@ -15,6 +15,7 @@ graph TB
 
     subgraph PublicVPC["🔓 Public VPC Subnet"]
         ALB["⚖️ AWS ALB<br/><i>Application Load Balancer<br/>Health checks, TLS</i>"]
+        Kong["🦍 Kong Gateway<br/><i>Rate limiting, JWT validation,<br/>CORS, request routing</i>"]
         NextJS["⚛️ Next.js Frontend<br/><i>ECS Fargate Task<br/>SSR + Static</i>"]
     end
 
@@ -45,8 +46,9 @@ graph TB
 
     Users --> CF
     CF --> ALB
-    ALB --> NextJS
-    ALB --> ECS
+    ALB --> Kong
+    Kong --> NextJS
+    Kong --> ECS
     NextJS --> ECS
     ECS --> RDS
     ECS --> Redis
@@ -72,7 +74,7 @@ The deployment is organized into four isolation layers:
 
 **Public Internet** — User traffic enters through Cloudflare CDN, which serves cached static assets (JavaScript bundles, images, fonts) and proxies dynamic requests to the AWS infrastructure. Cloudflare also provides DDoS protection and SSL termination for the `eventpass.com` domain.
 
-**Public VPC Subnet** — The AWS Application Load Balancer (ALB) receives traffic from Cloudflare and routes it to the appropriate ECS Fargate tasks. The ALB performs health checks (`/health` endpoint every 30s) and handles TLS termination for internal AWS traffic. The Next.js frontend runs here as a separate ECS task, serving server-rendered pages and proxying API calls to the backend.
+**Public VPC Subnet** — The AWS Application Load Balancer (ALB) receives traffic from Cloudflare and routes it to **Kong Gateway**, the API Gateway layer. Kong enforces rate limiting (critical for flash sales — 10 reservation attempts per user per minute), validates JWT tokens from Auth0, applies CORS headers, and routes requests to the appropriate backend: the Next.js frontend (SSR pages) or the EventPass API (ECS Fargate tasks). The ALB performs health checks (`/health` endpoint every 30s) and handles TLS termination for internal AWS traffic.
 
 **Private VPC Subnet** — The EventPass API (Modular Monolith) runs on ECS Fargate with 2-8 tasks depending on load. During normal operation, 2 tasks handle ~500 concurrent users. During flash sales, auto-scaling increases to 8 tasks to handle ~5K concurrent users. The API has no direct internet exposure — all traffic flows through the ALB. AWS S3 stores QR code images, event poster images, and static assets uploaded by organizers.
 
@@ -107,10 +109,13 @@ All external services are accessed from the Private VPC via NAT Gateway (not sho
 
 | Component | Instance/Config | Estimated Cost |
 |-----------|----------------|---------------|
-| ECS Fargate (API, 2 tasks) | 0.5 vCPU, 1GB each | ~$30/month |
-| ECS Fargate (Frontend, 1 task) | 0.25 vCPU, 0.5GB | ~$10/month |
+| ECS Fargate (API + Frontend) | 2 API tasks + 1 frontend task | ~$40/month |
+| Kong Gateway (ECS task) | 0.25 vCPU, 0.5GB | ~$15/month |
 | RDS PostgreSQL | db.r6g.large, Multi-AZ | ~$200/month |
 | ElastiCache Redis | cache.t4g.small | ~$25/month |
 | Amazon MQ RabbitMQ | mq.m5.large | ~$90/month |
 | S3 + CloudWatch | Storage + monitoring | ~$20/month |
-| **Total** | | **~$375/month** |
+| Cloudflare Pro | CDN + DDoS protection | ~$20/month |
+| Auth0 | Up to 25K MAU | Free |
+| SendGrid | Up to 100 emails/day | Free |
+| **Total** | | **~$410/month** |
