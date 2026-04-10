@@ -6,6 +6,7 @@ Architecture proposal documents for EventPass. These documents establish the fou
 
 | # | Document | Description |
 |---|----------|-------------|
+| 0 | [Architecture Characteristics](00-architecture-characteristics.md) | Architecture Characteristics Worksheet (top 3 driving + implicit), Architecture Styles Worksheet comparing 5 styles, style vs. pattern distinction |
 | 1 | [High-Level Architecture](01-high-level-architecture.md) | Compares Modular Monolith vs. Microservices for EventPass with 8-dimension analysis and recommendation for Modular Monolith |
 | 2 | [Bounded Contexts](02-bounded-contexts.md) | Defines 7 DDD bounded contexts with typed entities, domain events, integration patterns, and a Mermaid context map |
 | 3 | [Service/Module Decomposition](03-service-module-decomposition.md) | Details the Modular Monolith code structure: module ownership, public APIs, boundary enforcement, and future extraction path |
@@ -13,8 +14,10 @@ Architecture proposal documents for EventPass. These documents establish the fou
 
 ## Key Decisions Made
 
-- **Architecture:** Modular Monolith (team of 3-5 devs, MVP phase, clear migration path to microservices)
+- **Architecture:** Modular Monolith — justified via Architecture Styles Worksheet scoring (25 weighted points vs. Microservices' 25, with Data Integrity as tiebreaker)
+- **Driving Characteristics:** Elasticity, Availability, Data Integrity (from Architecture Characteristics Worksheet)
 - **Domain Model:** 7 bounded contexts (3 Core, 2 Supporting, 2 Generic)
 - **Module Communication:** Facade calls (sync) + internal event bus (async)
 - **Boundary Enforcement:** ESLint rules preventing cross-module internal imports
 - **Database Isolation:** Schema-per-module on single PostgreSQL instance
+- **Patterns Within Style:** Event-Driven, CQRS-lite, Cache-Aside, Anti-Corruption Layer, Choreography Saga
