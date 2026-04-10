@@ -59,6 +59,7 @@ eventpass-architecture/
 ├── README.md
 ├── proposals/
 │   ├── README.md
+│   ├── 00-architecture-characteristics.md
 │   ├── 01-high-level-architecture.md
 │   ├── 02-bounded-contexts.md
 │   ├── 03-service-module-decomposition.md
@@ -94,7 +95,8 @@ eventpass-architecture/
     ├── 09-payment-provider.md
     ├── 10-notification-system.md
     ├── 11-observability-stack.md
-    └── 12-cicd-pipeline.md
+    ├── 12-cicd-pipeline.md
+    └── 13-background-workers.md
 ```
 
 ---
@@ -116,6 +118,52 @@ Ejecutar estas tareas en orden. Cada tarea produce uno o más archivos Markdown.
 
 ### FASE 1 — Proposals (`/proposals`) — 4 puntos
 
+#### Tarea 1.0: `proposals/00-architecture-characteristics.md` *(NUEVA — derivada del material del curso)*
+Aplicar los frameworks del curso (Architecture Characteristics Worksheet y Architecture Styles Worksheet de Mark Richards) para justificar formalmente las decisiones de EventPass.
+
+**Sección 1: Architecture Characteristics Worksheet**
+Identificar y justificar las características arquitectónicas de EventPass:
+
+- **Top 3 Driving Characteristics (explícitas del dominio):**
+  1. **Elasticity** — Flash sales generan picos de tráfico 10x-100x sobre la línea base. A diferencia de *scalability* (crecimiento gradual), elasticity es la capacidad de escalar y des-escalar rápidamente ante picos repentinos. EventPass necesita manejar miles de usuarios compitiendo por inventario limitado en ventanas de minutos.
+  2. **Availability** — La plataforma debe estar disponible 24/7 para compra de boletos. Target: 99.9% uptime (≤8.76h downtime/año). Referencia del curso: tácticas de disponibilidad — detección de fallas (heartbeat, monitoring), recuperación (redundancia, rollback, retry), prevención (transacciones, exception handling).
+  3. **Data Integrity / Consistency** — No se puede vender más boletos de los disponibles (overselling). Las transacciones financieras requieren consistencia ACID. Los reembolsos deben ser idempotentes.
+
+- **Implicit Characteristics (no negociables pero no diferenciadoras):**
+  - **Security** — PCI compliance delegada a Stripe, datos personales protegidos, RBAC.
+  - **Feasibility** — Equipo de 3-5 devs, presupuesto de startup, timeline de MVP.
+  - **Observability** — Necesaria para detectar problemas en flash sales antes de que escalen.
+  - **Maintainability** — El dominio aún está en descubrimiento; el código debe ser fácil de refactorizar.
+
+- **Composite Characteristics (del curso):**
+  - **Agility** = Maintainability + Testability + Deployability → prioridad alta para fase MVP.
+  - **Reliability** = Availability + Testability + Data Integrity + Fault Tolerance → prioridad alta para operaciones de pago.
+
+**Sección 2: Architecture Styles Worksheet**
+Llenar el worksheet de Mark Richards comparando estilos contra las driving characteristics de EventPass:
+
+| Característica | Layered | Modular Monolith | Microservices | Event-Driven | Space-Based |
+|---|---|---|---|---|---|
+| Elasticity | ★ | ★★ | ★★★★★ | ★★★ | ★★★★★ |
+| Availability | ★ | ★★★ | ★★★★★ | ★★★ | ★★★★★ |
+| Data Integrity | ★★★★★ | ★★★★ | ★★ | ★★ | ★ |
+| Feasibility (cost + simplicity) | ★★★★★ | ★★★★ | ★ | ★★ | ★ |
+| Maintainability | ★ | ★★★★ | ★★★ | ★★★ | ★★ |
+| Testability | ★★ | ★★★★ | ★★★★ | ★★ | ★★ |
+| Deployability | ★ | ★★★ | ★★★★★ | ★★★ | ★★★ |
+
+**Conclusión del análisis:** Modular Monolith ofrece el mejor balance entre data integrity (★★★★), feasibility (★★★★), y maintainability (★★★★), sacrificando elasticity (★★) que se mitiga con Redis + auto-scaling de ECS Fargate. Microservices gana en elasticity y availability pero pierde en feasibility y data integrity — un trade-off inaceptable para un equipo de 3-5 devs en fase MVP.
+
+> **Referencia al curso:** "First Law of Software Architecture — Everything in architecture is a trade-off." (Fundamentals of SA, Richards & Ford). La decisión de Modular Monolith acepta menor elasticity a cambio de mayor data integrity y feasibility.
+
+**Sección 3: Distinción Estilo vs. Patrón (del curso)**
+- **Estilo arquitectónico elegido:** Modular Monolith (estructura general del sistema).
+- **Patrones utilizados DENTRO del estilo:** Event-Driven (para side-effects y comunicación inter-módulo), CQRS-lite (Catalog & Discovery es un read model proyectado desde Event Management y Ticketing), Cache-Aside (para inventario de tickets en Redis), Anti-Corruption Layer (para integraciones con Stripe, SendGrid, Auth0).
+
+**Diagrama:** Incluir un radar chart en Mermaid mostrando las 7 características para Modular Monolith vs. Microservices.
+
+---
+
 #### Tarea 1.1: `proposals/01-high-level-architecture.md`
 Comparar **Modular Monolith** vs. **Microservices** aplicados específicamente a EventPass.
 
@@ -123,6 +171,8 @@ Comparar **Modular Monolith** vs. **Microservices** aplicados específicamente a
 - Narrativa de cada enfoque explicando cómo se aplicaría al proyecto EventPass (no descripciones genéricas).
 - Tabla comparativa con EXACTAMENTE estas dimensiones: Deployment complexity, Team size fit, Horizontal scalability, Fault isolation, Development speed (initial), Development speed (long term), Infrastructure cost, Operational complexity.
 - Recomendación clara: **Modular Monolith**, justificada con: equipo de 3-5 devs, fase de producto temprana (MVP), dominio aún en descubrimiento, posibilidad de migrar módulos a servicios independientes si la escala lo requiere.
+- **Referenciar explícitamente** el análisis del Architecture Styles Worksheet (Tarea 1.0) como evidencia cuantitativa que soporta la decisión.
+- Mencionar la **First Law of Architecture** ("Everything is a trade-off") y hacer explícitos los trade-offs aceptados: menor elasticity y fault isolation a cambio de mayor data integrity, feasibility y development speed.
 - El tono debe ser de un arquitecto que toma una decisión real, no un ensayo académico.
 
 #### Tarea 1.2: `proposals/02-bounded-contexts.md`
@@ -266,7 +316,7 @@ Describir mínimo **4 flujos end-to-end** (el assignment pide 3, hacemos 4 para 
 - Incluir al menos un failure path por flujo.
 
 #### Tarea 1.5: `proposals/README.md`
-Crear un índice de la carpeta proposals con una tabla que enlace a cada documento y una descripción de una línea.
+Crear un índice de la carpeta proposals con una tabla que enlace a cada documento (incluyendo `00-architecture-characteristics.md`) y una descripción de una línea.
 
 ---
 
@@ -327,6 +377,7 @@ Cada ADR DEBE seguir EXACTAMENTE este formato:
 - **Opciones:** (1) Primariamente síncrono con REST, eventos solo para notificaciones, (2) Event-driven con REST solo para queries, (3) Híbrido: REST para commands/queries, eventos para side-effects y cross-module communication
 - **Decisión:** Opción 3 — Híbrido
 - **Ejemplos concretos:** REST sync para: browse events, view ticket availability, create order. Async para: payment confirmation (webhook), ticket QR generation, email/SMS notifications, catalog index update, analytics ingestion.
+- **Referencia del curso:** Mencionar las **8 Fallacies of Distributed Computing** como justificación adicional del Modular Monolith: en un monolito, la comunicación inter-módulo es in-process (no network), evitando las falacias 1 (red confiable), 2 (latencia cero), 6 (un solo administrador). Solo las integraciones externas (Stripe, SendGrid) enfrentan estas falacias, y se mitigan con retry + circuit breaker + idempotency.
 - **Related:** ADR-001, ADR-004, ADR-007
 
 #### Tarea 2.3: `adrs/ADR-003-database-strategy.md`
@@ -355,6 +406,11 @@ Cada ADR DEBE seguir EXACTAMENTE este formato:
 - **Opciones:** (1) Grafana + Prometheus + Loki + Tempo, (2) Datadog, (3) ELK (Elasticsearch + Logstash + Kibana)
 - **Decisión:** Grafana stack
 - **Justificación:** Open source, sin costo por volumen, equipo tiene experiencia con Prometheus. SLOs a monitorear: p99 latency < 200ms para búsquedas, p99 < 500ms para checkout, disponibilidad > 99.9%.
+- **Referencia del curso — Tácticas de Disponibilidad:** Mapear la estrategia de observabilidad a las tácticas del curso:
+  - *Detect faults:* Prometheus heartbeat/health checks + Grafana alerting (ping/echo), Tempo distributed tracing (monitoring).
+  - *Recover from faults:* ECS auto-restart (redundancy), blue-green deploy (rollback), RabbitMQ DLQ + retry (retry with backoff).
+  - *Prevent faults:* PostgreSQL ACID transactions (transactions), input validation en API Gateway (exception prevention), rate limiting en flash sales (prevención de sobrecarga).
+- **Métricas clave:** MTBF (Mean Time Between Failures) target > 720h, MTTR (Mean Time To Recovery) target < 15min.
 - **Related:** ADR-009
 
 #### Tarea 2.7: `adrs/ADR-007-api-design.md`
@@ -376,7 +432,8 @@ Cada ADR DEBE seguir EXACTAMENTE este formato:
 - **Tema:** Containerización, orquestación y pipeline de CI/CD
 - **Opciones:** (1) Docker + AWS ECS Fargate + GitHub Actions, (2) Docker + Kubernetes (EKS), (3) Serverless (AWS Lambda)
 - **Decisión:** Docker + AWS ECS Fargate + GitHub Actions
-- **Justificación:** Fargate elimina gestión de servidores, GitHub Actions se integra nativamente con el repo. Kubernetes es overkill para un monolito modular con equipo pequeño. Lambda no es adecuado para un monolito con conexiones persistentes a DB.
+- **Justificación:** Fargate elimina gestión de servidores, GitHub Actions se integra nativamente con el repo. Kubernetes es overkill para un monolito modular con equipo pequeño.
+- **Rechazo de Serverless (Lambda) — Referencia del curso (Serverless Architecture, Module 7):** Lambda no es adecuado para EventPass porque: (1) Cold starts de 100ms-5s afectan el p99 del checkout, inaceptable durante flash sales; (2) límite de 15 min de ejecución no es un problema, pero la statelessness forzada requiere rediseñar el manejo de conexiones DB (cada invocación crea nueva conexión → connection exhaustion); (3) a sustained high throughput (flash sales con miles req/min), el costo por invocación supera el costo de containers dedicados; (4) el monolito modular requiere estado compartido in-process entre módulos, incompatible con FaaS stateless. **Sin embargo**, Lambda SÍ sería adecuado para: generación de QR codes (event-driven, stateless), procesamiento de imágenes de eventos, scheduled reports — estos se documentan como candidatos para extracción futura.
 - **Pipeline:** lint → test → build → push image to ECR → deploy to staging → smoke tests → deploy to production. Rollback: ECS permite blue-green deployment nativo.
 - **Related:** ADR-001, ADR-006
 
@@ -510,8 +567,22 @@ Cada archivo DEBE contener las **5 secciones obligatorias:**
 - **Alternativas:** GitLab CI, CircleCI
 - **Responsabilidades en EventPass:** Build, test, deploy automatizado. Blue-green deployments. Rollback automático si health check falla.
 
-#### Tarea 4.13: `infrastructure/README.md`
-Tabla resumen de los 12 componentes con columnas: #, Componente, Tecnología, Descripción de una línea.
+#### Tarea 4.13: `infrastructure/13-background-workers.md` *(NUEVO — derivado de la presentación de Infrastructure del curso)*
+- **Elección:** BullMQ (Node.js, respaldado por Redis)
+- **Alternativas:** Celery (Python), Temporal (polyglot)
+- **Responsabilidades en EventPass:** Ejecutar tareas asíncronas fuera del ciclo request-response. Tareas específicas:
+  - **Queue `ticket_generation`:** Generación de QR codes después de OrderConfirmed (1-3s por ticket).
+  - **Queue `email`:** Envío de emails transaccionales vía SendGrid (1-3s).
+  - **Queue `payment_retry`:** Reintentos de pagos fallidos con backoff exponencial (3-10s).
+  - **Queue `catalog_sync`:** Actualización del índice de búsqueda de Catalog & Discovery (1-5s).
+  - **Queue `refund_batch`:** Procesamiento masivo de reembolsos cuando un evento se cancela (10-30s por batch).
+  - **Queue `analytics`:** Cómputo de métricas de ventas para dashboards de organizadores (15-60s).
+- **Approach A (Modular Monolith):** Workers corren el mismo codebase en "worker mode" (`npm run start:worker`). No hay llamadas de red entre módulos — solo desencolan y ejecutan la lógica del módulo correspondiente.
+- **Escalamiento:** Workers escalan independientemente del web server basado en queue depth. En flash sales, se aumentan los workers de `ticket_generation` y `catalog_sync`.
+- **Monitoring:** Bull Board UI para visualizar queues, jobs en progreso, jobs fallidos. Alertas cuando DLQ > 0.
+
+#### Tarea 4.14: `infrastructure/README.md`
+Tabla resumen de los 13 componentes con columnas: #, Componente, Tecnología, Descripción de una línea.
 
 ---
 
@@ -540,7 +611,8 @@ Revisar que:
 #### Tarea 6.2: Checklist de rúbrica 100%
 
 **Proposals (4 pts):**
-- [ ] 4 documentos completos con profundidad
+- [ ] 5 documentos completos con profundidad (incluye Architecture Characteristics Worksheet)
+- [ ] Architecture Characteristics Worksheet con top 3 driving + implicit + Styles Worksheet comparativo
 - [ ] 2 enfoques genuinamente comparados con razonamiento específico al proyecto
 - [ ] 6+ bounded contexts bien definidos con campos tipados en entidades
 - [ ] 3+ flujos con happy path + failure path
@@ -560,7 +632,7 @@ Revisar que:
 - [ ] Flujos largos divididos en múltiples diagramas
 
 **Infrastructure (2 pts):**
-- [ ] 12 componentes (supera el mínimo de 8)
+- [ ] 13 componentes (supera el mínimo de 8)
 - [ ] Las 5 secciones completas en cada componente
 - [ ] Tecnología justificada para la escala del proyecto
 - [ ] Trade-offs honestos
@@ -585,3 +657,13 @@ Revisar que:
 - **Entidades deben tener campos tipados** (nombre: tipo, constraints).
 - **Domain events en pasado:** `OrderPlaced`, NO `PlaceOrder`.
 - **Ejecutar las fases en orden** porque cada fase depende de las decisiones de la anterior.
+- **Referencias al curso que deben aparecer naturalmente en los documentos:**
+  - First Law of Architecture: "Everything is a trade-off" (Richards & Ford) → en proposals y ADRs.
+  - Architecture Characteristics Worksheet (Mark Richards) → en `00-architecture-characteristics.md`.
+  - Architecture Styles Worksheet (Mark Richards) → en `00-architecture-characteristics.md` y `01-high-level-architecture.md`.
+  - 8 Fallacies of Distributed Computing → en ADR-002 (communication style).
+  - Availability Tactics taxonomy (detect, recover, prevent) → en ADR-006 (observability).
+  - Style vs. Pattern distinction → en `00-architecture-characteristics.md`.
+  - Composite characteristics (agility, reliability) → en `00-architecture-characteristics.md`.
+  - Serverless trade-offs (cold starts, statelessness, vendor lock-in) → en ADR-009.
+  - Infrastructure Approach A (Modular Monolith) vs B (Microservices) → en cada documento de infrastructure.

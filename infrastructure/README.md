@@ -20,12 +20,14 @@ All technology choices are justified against EventPass's specific constraints: t
 | 10 | [Notification System](10-notification-system.md) | SendGrid + Twilio | Transactional emails, SMS alerts, dynamic templates, delivery tracking |
 | 11 | [Observability Stack](11-observability-stack.md) | Grafana + Prometheus + Loki + Tempo | Metrics, logs, traces, SLO dashboards, alerting |
 | 12 | [CI/CD Pipeline](12-cicd-pipeline.md) | GitHub Actions + Docker + ECR + ECS | Automated build, test, deploy with blue-green strategy and auto-rollback |
+| 13 | [Background Workers](13-background-workers.md) | BullMQ (Node.js + Redis) | Async task processing: QR generation, emails, payment retry, catalog sync, refund batches |
 
 ## Cost Summary (Normal Operation)
 
 | Component | Monthly Cost |
 |-----------|-------------|
 | ECS Fargate (API + Frontend) | ~$40 |
+| ECS Fargate (Workers, 1 task) | ~$20 |
 | Kong Gateway (ECS task) | ~$15 |
 | RDS PostgreSQL (Multi-AZ) | ~$200 |
 | ElastiCache Redis | ~$25 |
@@ -34,4 +36,4 @@ All technology choices are justified against EventPass's specific constraints: t
 | Cloudflare Pro | ~$20 |
 | Auth0 | Free (up to 25K MAU) |
 | SendGrid | Free (up to 100 emails/day) |
-| **Total** | **~$410/month** |
+| **Total** | **~$430/month** |

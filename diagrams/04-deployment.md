@@ -110,6 +110,7 @@ All external services are accessed from the Private VPC via NAT Gateway (not sho
 | Component | Instance/Config | Estimated Cost |
 |-----------|----------------|---------------|
 | ECS Fargate (API + Frontend) | 2 API tasks + 1 frontend task | ~$40/month |
+| ECS Fargate (Workers) | 1 worker task (BullMQ) | ~$20/month |
 | Kong Gateway (ECS task) | 0.25 vCPU, 0.5GB | ~$15/month |
 | RDS PostgreSQL | db.r6g.large, Multi-AZ | ~$200/month |
 | ElastiCache Redis | cache.t4g.small | ~$25/month |
@@ -118,4 +119,4 @@ All external services are accessed from the Private VPC via NAT Gateway (not sho
 | Cloudflare Pro | CDN + DDoS protection | ~$20/month |
 | Auth0 | Up to 25K MAU | Free |
 | SendGrid | Up to 100 emails/day | Free |
-| **Total** | | **~$410/month** |
+| **Total** | | **~$430/month** |
