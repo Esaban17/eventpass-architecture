@@ -9,7 +9,7 @@ This repository contains the complete software architecture design produced as a
 | Dimension | Value |
 |-----------|-------|
 | Team size | 3–5 developers |
-| Monthly infrastructure budget | ~$410/month |
+| Monthly infrastructure budget | ~$430/month |
 | Concurrent users (normal) | ~500 |
 | Concurrent users (flash sales) | ~5,000 |
 | Primary market | Latin America (Guatemala, Mexico, Colombia) |
@@ -21,10 +21,10 @@ This repository contains the complete software architecture design produced as a
 
 | Section | Folder | Contents |
 |---------|--------|----------|
-| [Proposals](proposals/README.md) | `proposals/` | 4 architectural proposals covering system model, bounded contexts, module decomposition, and data flows |
+| [Proposals](proposals/README.md) | `proposals/` | 5 architectural proposals: characteristics worksheet, system model, bounded contexts, module decomposition, and data flows |
 | [Architecture Decision Records](adrs/README.md) | `adrs/` | 10 ADRs documenting key technology and design decisions with rationale |
 | [Diagrams](diagrams/README.md) | `diagrams/` | 4 Mermaid diagrams: system context, context map, data flow sequences, and deployment topology |
-| [Infrastructure](infrastructure/README.md) | `infrastructure/` | 12 infrastructure component documents covering every technology in the stack |
+| [Infrastructure](infrastructure/README.md) | `infrastructure/` | 13 infrastructure component documents covering every technology in the stack |
 | [Backlog](docs/backlog/BACKLOG.md) | `docs/backlog/` | Master project backlog defining all phases, bounded contexts, and grading rubric |
 
 ---
@@ -118,6 +118,7 @@ eventpass-architecture/
 │       └── BACKLOG.md                 # Master project backlog
 ├── proposals/
 │   ├── README.md                      # Proposals index
+│   ├── 00-architecture-characteristics.md  # Architecture Characteristics & Styles Worksheets
 │   ├── 01-high-level-architecture.md  # Modular Monolith vs Microservices
 │   ├── 02-bounded-contexts.md         # 7 bounded contexts with entities
 │   ├── 03-service-module-decomposition.md  # TypeScript module structure
@@ -153,5 +154,6 @@ eventpass-architecture/
     ├── 09-payment-provider.md         # Stripe
     ├── 10-notification-system.md      # SendGrid + Twilio
     ├── 11-observability-stack.md      # Grafana + Prometheus + Loki + Tempo
-    └── 12-cicd-pipeline.md            # GitHub Actions + Docker + ECR + ECS
+    ├── 12-cicd-pipeline.md            # GitHub Actions + Docker + ECR + ECS
+    └── 13-background-workers.md       # BullMQ (Node.js + Redis)
 ```
